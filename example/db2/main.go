@@ -45,7 +45,6 @@ func main() {
 		bundebug.WithVerbose(true),
 		bundebug.FromEnv("BUNDEBUG"),
 	))
-
 	tableName := fmt.Sprintf("bun_db2_demo_users_%d", time.Now().Unix())
 	table := bun.Ident(tableName)
 
