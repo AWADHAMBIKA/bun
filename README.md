@@ -143,6 +143,7 @@ db.NewSelect().Table("users").Column("id", "name").Limit(1).Scan(ctx, &id, &name
 | SQLite        | `github.com/uptrace/bun/driver/sqliteshim` | `sqlitedialect.New()` |
 | SQL Server    | `github.com/denisenkom/go-mssqldb`         | `mssqldialect.New()`  |
 | Oracle        | `github.com/sijms/go-ora/v2`               | `oracledialect.New()` |
+| IBM DB2       | `github.com/ibmdb/go_ibm_db`               | `db2dialect.New()`    |
 
 ## 🔧 Advanced Features
 

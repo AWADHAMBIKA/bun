@@ -1,5 +1,7 @@
-ALL_GO_MOD_DIRS := $(shell find . -type f -name 'go.mod' -exec dirname {} \; | sort)
-EXAMPLE_GO_MOD_DIRS := $(shell find ./example/ -type f -name 'go.mod' -exec dirname {} \; | sort)
+# example/db2 requires IBM's proprietary DB2 CLI/ODBC client driver (cgo + libdb2)
+# to compile, which isn't available on CI runners, so it is excluded here.
+ALL_GO_MOD_DIRS := $(shell find . -type f -name 'go.mod' -exec dirname {} \; | grep -v '^\./example/db2$$' | sort)
+EXAMPLE_GO_MOD_DIRS := $(shell find ./example/ -type f -name 'go.mod' -exec dirname {} \; | grep -v '^\./example/db2$$' | sort)
 
 test:
 	set -e; for dir in $(ALL_GO_MOD_DIRS); do \

@@ -1,3 +1,11 @@
+## Unreleased
+
+### Features
+
+* add IBM DB2 dialect support via `dialect/db2dialect` (use with the `github.com/ibmdb/go_ibm_db` driver)
+
+
+
 ## [1.2.18](github.com/uptrace/bun/compare/v1.2.17...v1.2.18) (2026-02-28)
 
 
