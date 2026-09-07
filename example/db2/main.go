@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"time"
 
 	_ "github.com/ibmdb/go_ibm_db"
@@ -25,7 +26,10 @@ func main() {
 	ctx := context.Background()
 
 	// Connection string for IBM DB2, see github.com/ibmdb/go_ibm_db for details.
-	dsn := "HOSTNAME=localhost;DATABASE=testdb;PORT=50000;UID=db2inst1;PWD=password"
+	dsn := os.Getenv("DB2_DSN")
+	if dsn == "" {
+		dsn = "HOSTNAME=localhost;DATABASE=testdb;PORT=50000;UID=db2inst1;PWD=password"
+	}
 
 	sqldb, err := sql.Open("go_ibm_db", dsn)
 	if err != nil {
@@ -41,14 +45,22 @@ func main() {
 		bundebug.FromEnv("BUNDEBUG"),
 	))
 
-	if _, err := db.NewCreateTable().
-		Model((*User)(nil)).
-		IfNotExists().
-		Exec(ctx); err != nil {
+	var tableName string
+	err = db.NewRaw("SELECT TABNAME FROM SYSCAT.TABLES WHERE TABSCHEMA = CURRENT SCHEMA AND TABNAME = 'USERS' FETCH FIRST 1 ROW ONLY").
+		Scan(ctx, &tableName)
+	if err != nil && err != sql.ErrNoRows {
 		panic(err)
 	}
+	if err == sql.ErrNoRows {
+		if _, err := db.NewCreateTable().Model((*User)(nil)).Exec(ctx); err != nil {
+			panic(err)
+		}
+	}
 
-	user := &User{Name: "Alice", Email: "alice@example.com"}
+	user := &User{
+		Name:  "Alice",
+		Email: fmt.Sprintf("alice+%d@example.com", time.Now().UnixNano()),
+	}
 	if _, err := db.NewInsert().Model(user).Exec(ctx); err != nil {
 		panic(err)
 	}
@@ -56,7 +68,7 @@ func main() {
 	var users []User
 	if err := db.NewSelect().
 		Model(&users).
-		OrderExpr("id ASC").
+		OrderExpr(`"user"."id" ASC`).
 		Limit(10).
 		Scan(ctx); err != nil {
 		panic(err)
