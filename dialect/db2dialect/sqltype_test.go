@@ -1,6 +1,7 @@
 package db2dialect
 
 import (
+	"database/sql"
 	"reflect"
 	"testing"
 	"time"
@@ -30,6 +31,14 @@ func TestFieldSQLType(t *testing.T) {
 		{name: "SmallIntBool", typ: reflect.TypeFor[SmallIntBool](), want: "SMALLINT"},
 		{name: "NullSmallInt", typ: reflect.TypeFor[NullSmallInt](), want: "SMALLINT"},
 		{name: "NullSmallIntBool", typ: reflect.TypeFor[NullSmallIntBool](), want: "SMALLINT"},
+		{name: "sql.NullBool", typ: reflect.TypeFor[sql.NullBool](), want: "SMALLINT"},
+		{name: "sql.NullString", typ: reflect.TypeFor[sql.NullString](), want: "VARCHAR"},
+		{name: "sql.NullInt64", typ: reflect.TypeFor[sql.NullInt64](), want: "BIGINT"},
+		{name: "sql.NullInt32", typ: reflect.TypeFor[sql.NullInt32](), want: "INTEGER"},
+		{name: "sql.NullInt16", typ: reflect.TypeFor[sql.NullInt16](), want: "SMALLINT"},
+		{name: "sql.NullByte", typ: reflect.TypeFor[sql.NullByte](), want: "SMALLINT"},
+		{name: "sql.NullFloat64", typ: reflect.TypeFor[sql.NullFloat64](), want: "DOUBLE PRECISION"},
+		{name: "sql.NullTime", typ: reflect.TypeFor[sql.NullTime](), want: "TIMESTAMP"},
 	}
 
 	for _, test := range tests {

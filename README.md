@@ -145,6 +145,10 @@ db.NewSelect().Table("users").Column("id", "name").Limit(1).Scan(ctx, &id, &name
 | Oracle        | `github.com/sijms/go-ora/v2`               | `oracledialect.New()` |
 | IBM DB2       | `github.com/ibmdb/go_ibm_db`               | `db2dialect.New()`    |
 
+The DB2 dialect automatically detects LUW, z/OS, or IBM i when initialized
+with a database connection. To select a platform explicitly, use
+`db2dialect.NewLUW()`, `db2dialect.NewZOS()`, or `db2dialect.NewIBMi()`.
+
 ## 🔧 Advanced Features
 
 ### Table Relationships

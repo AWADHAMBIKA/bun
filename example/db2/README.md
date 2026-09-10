@@ -15,6 +15,11 @@ Update the `dsn` connection string in `main.go` to point at your DB2 instance, t
 go run .
 ```
 
+The example uses `db2dialect.New()`, which detects the target platform from the
+connection. For an explicit platform, use `db2dialect.NewLUW()` for DB2 LUW,
+`db2dialect.NewZOS()` for DB2 for z/OS, or `db2dialect.NewIBMi()` for DB2 for
+IBM i.
+
 To disable query logging:
 
 ```shell

@@ -42,6 +42,51 @@ func TestAppendBool(t *testing.T) {
 	}
 }
 
+func TestExplicitConstructors(t *testing.T) {
+	tests := []struct {
+		name   string
+		new    func() *Dialect
+		target TargetPlatform
+	}{
+		{"LUW", NewLUW, TargetLUW},
+		{"z/OS", NewZOS, TargetZOS},
+		{"IBM i", NewIBMi, TargetIBMi},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			d := test.new()
+			if d.Target() != test.target {
+				t.Fatalf("expected target %v, got %v", test.target, d.Target())
+			}
+			if !d.targetSetExplicitly {
+				t.Fatal("explicit constructor must disable target auto-detection")
+			}
+			if d.autoDetected {
+				t.Fatal("explicit constructor should not mark target as auto-detected")
+			}
+		})
+	}
+}
+
+func TestCatalogSchema(t *testing.T) {
+	tests := []struct {
+		target TargetPlatform
+		want   string
+	}{
+		{TargetLUW, "SYSCAT"},
+		{TargetZOS, "SYSIBM"},
+		{TargetIBMi, "QSYS2"},
+	}
+
+	for _, test := range tests {
+		d := New(WithTarget(test.target))
+		if got := d.CatalogSchema(); got != test.want {
+			t.Errorf("target %v: expected catalog %q, got %q", test.target, test.want, got)
+		}
+	}
+}
+
 // TestAppendOffsetLimit verifies pagination SQL generation
 func TestAppendOffsetLimit(t *testing.T) {
 	tests := []struct {
