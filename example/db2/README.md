@@ -9,6 +9,19 @@ This example demonstrates using Bun with IBM DB2 via the
 > driver to be installed locally, so it is excluded from this repo's CI and
 > from `make test` / `make run-examples`.
 
+Automatic platform detection uses the published `Conn.GetInfo(infoType)` API
+from go_ibm_db. Update the driver dependency before running this example:
+
+```shell
+go get github.com/ibmdb/go_ibm_db@latest
+go mod tidy
+```
+
+The dialect logs a warning and defaults to LUW if the driver does not provide
+the detection API or if detection fails. When the target platform is known,
+use `db2dialect.NewLUW()`, `db2dialect.NewZOS()`, or `db2dialect.NewIBMi()` to
+skip automatic detection.
+
 Update the `dsn` connection string in `main.go` to point at your DB2 instance, then run:
 
 ```shell

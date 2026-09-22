@@ -1,9 +1,13 @@
 package db2dialect
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"log"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/uptrace/bun"
@@ -12,6 +16,46 @@ import (
 	"github.com/uptrace/bun/dialect/sqltype"
 	"github.com/uptrace/bun/schema"
 )
+
+var errUnsupportedDriverConn = errors.New("db2dialect: driver connection does not support GetInfo() detection")
+
+// sqlDBMSName is the standard ODBC SQLGetInfo infoType requesting the DBMS
+// name (SQL_DBMS_NAME), mirrored here to avoid a hard dependency on the
+// go_ibm_db driver's cgo-only api package.
+const sqlDBMSName = 17
+
+// getDBMSName calls the driver connection's GetInfo(infoType) (string, error)
+// method (as implemented by *go_ibm_db.Conn) via reflection. Reflection is
+// used, rather than a static interface, because the method's infoType
+// parameter is a named cgo type (api.SQLUSMALLINT) that db2dialect cannot
+// reference without pulling in the driver's cgo build requirements.
+func getDBMSName(driverConn any) (string, error) {
+	v := reflect.ValueOf(driverConn)
+	m := v.MethodByName("GetInfo")
+	if !m.IsValid() {
+		return "", errUnsupportedDriverConn
+	}
+	mt := m.Type()
+	if mt.NumIn() != 1 || mt.NumOut() != 2 {
+		return "", errUnsupportedDriverConn
+	}
+	argType := mt.In(0)
+	if argType.Kind() != reflect.Uint16 {
+		return "", errUnsupportedDriverConn
+	}
+	if !mt.Out(0).AssignableTo(reflect.TypeFor[string]()) || !mt.Out(1).Implements(reflect.TypeFor[error]()) {
+		return "", errUnsupportedDriverConn
+	}
+
+	arg := reflect.New(argType).Elem()
+	arg.SetUint(sqlDBMSName)
+
+	out := m.Call([]reflect.Value{arg})
+	if errVal := out[1].Interface(); errVal != nil {
+		return "", errVal.(error)
+	}
+	return out[0].String(), nil
+}
 
 func init() {
 	if Version() != bun.Version() {
@@ -98,27 +142,50 @@ func WithoutFeature(other feature.Feature) DialectOption {
 	}
 }
 
+func classifyDBMSName(name string) TargetPlatform {
+	upper := strings.ToUpper(name)
+	switch {
+	case upper == "DB2" || strings.HasPrefix(upper, "DSN"):
+		return TargetZOS
+	case strings.HasPrefix(upper, "AS"):
+		return TargetIBMi
+	case strings.HasPrefix(upper, "DB2/"):
+		return TargetLUW
+	default:
+		log.Printf("db2dialect: WARNING: unable to deduce DB2 platform from DBMS_NAME %q, defaulting to LUW", name)
+		return TargetLUW
+	}
+}
+
 func (d *Dialect) Init(db *sql.DB) {
 	if db == nil || d.targetSetExplicitly || d.autoDetected {
 		return
 	}
 
-	var dummy int
-	checks := []struct {
-		target TargetPlatform
-		query  string
-	}{
-		{TargetLUW, "SELECT 1 FROM SYSCAT.TABLES FETCH FIRST 1 ROWS ONLY"},
-		{TargetZOS, "SELECT 1 FROM SYSIBM.SYSTABLES FETCH FIRST 1 ROWS ONLY"},
-		{TargetIBMi, "SELECT 1 FROM QSYS2.SYSTABLES FETCH FIRST 1 ROWS ONLY"},
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		log.Printf("db2dialect: WARNING: unable to deduce DB2 platform (%v), defaulting to LUW", err)
+		d.target = TargetLUW
+		d.autoDetected = true
+		return
 	}
-	for _, check := range checks {
-		if err := db.QueryRow(check.query).Scan(&dummy); err == nil {
-			d.target = check.target
-			d.autoDetected = true
-			return
-		}
+	defer conn.Close()
+
+	var name string
+	rawErr := conn.Raw(func(driverConn any) error {
+		var callErr error
+		name, callErr = getDBMSName(driverConn)
+		return callErr
+	})
+	if rawErr != nil {
+		log.Printf("db2dialect: WARNING: unable to deduce DB2 platform (%v), defaulting to LUW", rawErr)
+		d.target = TargetLUW
+		d.autoDetected = true
+		return
 	}
+
+	d.target = classifyDBMSName(name)
+	d.autoDetected = true
 }
 
 func (d *Dialect) Name() dialect.Name {
@@ -192,6 +259,9 @@ func (d *Dialect) AppendSequence(b []byte, _ *schema.Table, field *schema.Field)
 }
 
 func (*Dialect) AppendTime(b []byte, tm time.Time) []byte {
+	if tm.IsZero() {
+		return append(b, "NULL"...)
+	}
 	b = append(b, '\'')
 	b = tm.UTC().AppendFormat(b, "2006-01-02 15:04:05.999999")
 	b = append(b, '\'')

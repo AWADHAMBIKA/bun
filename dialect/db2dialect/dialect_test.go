@@ -1,8 +1,11 @@
 package db2dialect
 
 import (
+	"errors"
+	"fmt"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/uptrace/bun/dialect"
 	"github.com/uptrace/bun/dialect/feature"
@@ -42,6 +45,19 @@ func TestAppendBool(t *testing.T) {
 	}
 }
 
+func TestAppendTime(t *testing.T) {
+	d := New()
+
+	if got := string(d.AppendTime(nil, time.Time{})); got != "NULL" {
+		t.Fatalf("expected zero time to append NULL, got %q", got)
+	}
+
+	tm := time.Date(2026, 3, 4, 5, 6, 7, 123456000, time.FixedZone("test", 2*60*60))
+	if got := string(d.AppendTime(nil, tm)); got != "'2026-03-04 03:06:07.123456'" {
+		t.Fatalf("expected UTC timestamp, got %q", got)
+	}
+}
+
 func TestExplicitConstructors(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -66,6 +82,63 @@ func TestExplicitConstructors(t *testing.T) {
 				t.Fatal("explicit constructor should not mark target as auto-detected")
 			}
 		})
+	}
+}
+
+func TestClassifyDBMSName(t *testing.T) {
+	tests := []struct {
+		name string
+		want TargetPlatform
+	}{
+		{"DB2/LINUXX8664", TargetLUW},
+		{"DB2", TargetZOS},
+		{"DSN11015", TargetZOS},
+		{"AS/400", TargetIBMi},
+		{"IDS", TargetLUW},
+		{"SOMETHING_ELSE", TargetLUW},
+		{"", TargetLUW},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := classifyDBMSName(test.name); got != test.want {
+				t.Fatalf("classifyDBMSName(%q) = %v, want %v", test.name, got, test.want)
+			}
+		})
+	}
+}
+
+// infoType mirrors the driver's named api.SQLUSMALLINT type to verify
+// getDBMSName's reflection-based call works against a non-uint16 named type.
+type infoType uint16
+
+type fakeGetInfoConn struct {
+	name string
+	err  error
+}
+
+func (c fakeGetInfoConn) GetInfo(t infoType) (string, error) {
+	if t != sqlDBMSName {
+		return "", fmt.Errorf("unexpected infoType %d", t)
+	}
+	return c.name, c.err
+}
+
+func TestGetDBMSName(t *testing.T) {
+	name, err := getDBMSName(fakeGetInfoConn{name: "DB2/LINUXX8664"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if name != "DB2/LINUXX8664" {
+		t.Fatalf("expected %q, got %q", "DB2/LINUXX8664", name)
+	}
+
+	if _, err := getDBMSName(fakeGetInfoConn{err: errors.New("boom")}); err == nil {
+		t.Fatal("expected error to propagate")
+	}
+
+	if _, err := getDBMSName(struct{}{}); !errors.Is(err, errUnsupportedDriverConn) {
+		t.Fatalf("expected errUnsupportedDriverConn, got %v", err)
 	}
 }
 
