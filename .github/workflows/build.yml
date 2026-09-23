@@ -109,6 +109,16 @@ jobs:
 
       - name: Start Db2
         run: |
+          image=icr.io/db2_community/db2
+          for attempt in 1 2 3 4 5; do
+            if docker pull "$image"; then
+              break
+            fi
+            if [ "$attempt" = 5 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 30))
+          done
           docker run --detach --privileged --name db2 \
             --publish 50000:50000 \
             --env LICENSE=accept \
@@ -120,7 +130,7 @@ jobs:
             --env REPODB=false \
             --env IS_OSXFS=false \
             --env PERSISTENT_HOME=false \
-            icr.io/db2_community/db2
+            "$image"
           until docker exec db2 su - db2inst1 -c 'db2 connect to testdb user db2inst1 using password' >/dev/null 2>&1; do
             sleep 10
           done
