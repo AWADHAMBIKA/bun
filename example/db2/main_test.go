@@ -53,7 +53,8 @@ func TestDB2Integration(t *testing.T) {
 	if _, err := db.NewDelete().Model((*User)(nil)).ModelTableExpr("?", table).Where("1 = 1").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.NewSelect().Model(&users).ModelTableExpr("?", table).Scan(ctx); err != nil {
+	users = nil
+	if err := db.NewSelect().Model(&users).ModelTableExpr("? AS ?", table, bun.Ident("user")).Scan(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if len(users) != 0 {
