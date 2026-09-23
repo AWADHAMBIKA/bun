@@ -6,8 +6,9 @@ This example demonstrates using Bun with IBM DB2 via the
 
 > **Note:** `go_ibm_db` uses cgo and links against IBM's proprietary DB2 CLI/ODBC
 > client driver (`libdb2`). Building or running this example requires that
-> driver to be installed locally, so it is excluded from this repo's CI and
-> from `make test` / `make run-examples`.
+> driver to be installed locally, so it is excluded from `make test` and
+> `make run-examples`. The DB2 integration CI job installs the driver and runs
+> this example against IBM's Db2 Community Edition container.
 
 Automatic platform detection uses the published `Conn.GetInfo(infoType)` API
 from go_ibm_db. Update the driver dependency before running this example:
