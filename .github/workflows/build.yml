@@ -127,12 +127,13 @@ jobs:
 
       - name: Install Db2 CLI driver
         run: |
-          git clone --depth 1 https://github.com/ibmdb/go_ibm_db.git /tmp/go_ibm_db
-          (cd /tmp/go_ibm_db && go run installer/setup.go)
-          echo "IBM_DB_HOME=/tmp/go_ibm_db/clidriver" >> "$GITHUB_ENV"
-          echo "CGO_CFLAGS=-I/tmp/go_ibm_db/clidriver/include" >> "$GITHUB_ENV"
-          echo "CGO_LDFLAGS=-L/tmp/go_ibm_db/clidriver/lib" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=/tmp/go_ibm_db/clidriver/lib" >> "$GITHUB_ENV"
+          mkdir -p .cache
+          git clone --depth 1 https://github.com/ibmdb/go_ibm_db.git .cache/go_ibm_db
+          (cd .cache/go_ibm_db && go run installer/setup.go "$GITHUB_WORKSPACE/.cache")
+          echo "IBM_DB_HOME=$GITHUB_WORKSPACE/.cache/clidriver" >> "$GITHUB_ENV"
+          echo "CGO_CFLAGS=-I$GITHUB_WORKSPACE/.cache/clidriver/include" >> "$GITHUB_ENV"
+          echo "CGO_LDFLAGS=-L$GITHUB_WORKSPACE/.cache/clidriver/lib" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/.cache/clidriver/lib" >> "$GITHUB_ENV"
 
       - name: Run Db2 integration test
         working-directory: example/db2
